@@ -150,7 +150,7 @@ class Diff_Renderer_Html_Array extends Diff_Renderer_Abstract
 	{
 		$start = 0;
 		$limit = min(strlen($fromLine), strlen($toLine));
-		while($start < $limit && $fromLine{$start} == $toLine{$start}) {
+		while($start < $limit && substr($fromLine,$start,1) == substr($toLine,$start,1)) {
 			++$start;
 		}
 		$end = -1;
