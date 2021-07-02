@@ -58,12 +58,12 @@ class Diff_Renderer_Html_Inline extends Diff_Renderer_Html_Array
 			return $html;
 		}
 
-		$html .= '<table pressdo-diff>';
+		$html .= '<table diff>';
 		$html .= '<thead>';
 		$html .= '<tr>';
 		$html .= '<th></th>';
 		$html .= '<th></th>';
-		$html .= '<th pressdo-diff-title>r'.$this->oldrev.' vs r'.$this->newrev.'</th>';
+		$html .= '<th diff-title>r'.$this->oldrev.' vs r'.$this->newrev.'</th>';
 		$html .= '</tr>';
 		$html .= '</thead>';
 		foreach($changes as $i => $blocks) {
