@@ -1,3 +1,8 @@
+# theseed-style Diff Library
+php-diff 라이브러리를 the seed 엔진에서 사용하고 있는 것과 유사하게 수정하였습니다.
+UTF-8 문자열에 대응합니다.
+
+--------------
 PHP Diff Class
 --------------
 
