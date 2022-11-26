@@ -1,9 +1,6 @@
 <?php
 /**
- * Diff
- *
- * A comprehensive library for generating differences between two strings
- * in multiple formats (unified, side by side HTML etc)
+ * Inline HTML diff generator for PHP DiffLib.
  *
  * PHP version 5
  *
@@ -35,7 +32,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE 
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * @package Diff
+ * @package DiffLib
  * @author Chris Boulton <chris.boulton@interspire.com>
  * @copyright (c) 2009 Chris Boulton
  * @license New BSD License http://www.opensource.org/licenses/bsd-license.php
@@ -43,137 +40,110 @@
  * @link http://github.com/chrisboulton/php-diff
  */
 
-class Diff
+require dirname(__FILE__).'/Array.php';
+
+class Diff_Renderer_Html_Inline extends Diff_Renderer_Html_Array
 {
 	/**
-	 * @var array The "old" sequence to use as the basis for the comparison.
-	 */
-	private $a = null;
-
-	/**
-	 * @var array The "new" sequence to generate the changes for.
-	 */
-	private $b = null;
-
-	/**
-	 * @var array Array containing the generated opcodes for the differences between the two items.
-	 */
-	private $groupedCodes = null;
-
-	/**
-	 * @var array Associative array of the default options available for the diff class and their default value.
-	 */
-	private $defaultOptions = array(
-		'context' => 3,
-		'ignoreNewLines' => false,
-		'ignoreWhitespace' => false,
-		'ignoreCase' => false
-	);
-
-	/**
-	 * @var array Array of the options that have been applied for generating the diff.
-	 */
-	private $options = array();
-
-	/**
-	 * The constructor.
+	 * Render a and return diff with changes between the two sequences
+	 * displayed inline (under each other)
 	 *
-	 * @param array $a Array containing the lines of the first string to compare.
-	 * @param array $b Array containing the lines for the second string to compare.
+	 * @return string The generated inline diff.
 	 */
-	public function __construct($a, $b, $options=array())
+	public function render()
 	{
-		$this->a = $a;
-		$this->b = $b;
-
-		if (is_array($options))
-			$this->options = array_merge($this->defaultOptions, $options);
-		else
-			$this->options = $this->defaultOptions;
-	}
-
-	/**
-	 * Render a diff using the supplied rendering class and return it.
-	 *
-	 * @param object $renderer An instance of the rendering object to use for generating the diff.
-	 * @return mixed The generated diff. Exact return value depends on the rendered.
-	 */
-	public function render(Diff_Renderer_Abstract $renderer)
-	{
-		$renderer->diff = $this;
-		return $renderer->render();
-	}
-
-	/**
-	 * Get a range of lines from $start to $end from the first comparison string
-	 * and return them as an array. If no values are supplied, the entire string
-	 * is returned. It's also possible to specify just one line to return only
-	 * that line.
-	 *
-	 * @param int $start The starting number.
-	 * @param int $end The ending number. If not supplied, only the item in $start will be returned.
-	 * @return array Array of all of the lines between the specified range.
-	 */
-	public function getA($start=0, $end=null)
-	{
-		if($start == 0 && $end === null) {
-			return $this->a;
+		$changes = parent::render();
+		$html = '';
+		if(empty($changes)) {
+			return $html;
 		}
 
-		if($end === null) {
-			$length = 1;
+		$html .= '<table class="diff">';
+		$html .= '<thead>';
+		$html .= '<tr>';
+		$html .= '<th></th>';
+		$html .= '<th></th>';
+		$html .= '<th class="diff">r'.$this->oldrev.' vs r'.$this->newrev.'</th>';
+		$html .= '</tr>';
+		$html .= '</thead>';
+		foreach($changes as $i => $blocks) {
+			// Skipped line before and between changes.
+			if($i > 0 || ($i === 0 && $blocks[0]['base']['offset'] > 0)) {
+				$html .= '<tr>';
+				$html .= '<th>...</th>';
+				$html .= '<th>...</th>';
+				$html .= '<td class="skip"></td>';
+				$html .= '</tr>';
+			}
+
+			foreach($blocks as $change) {
+				if($change['tag'] == 'equal') {
+					foreach($change['base']['lines'] as $no => $line) {
+						$fromLine = $change['base']['offset'] + $no + 1;
+						$toLine = $change['changed']['offset'] + $no + 1;
+						$html .= '<tr>';
+						$html .= '<th>'.$fromLine.'</th>';
+						$html .= '<th>'.$toLine.'</th>';
+						$html .= '<td class="equal"><div>'.$line.'</div></td>';
+						$html .= '</tr>';
+					}
+				}
+				// Added lines only on the right side
+				else if($change['tag'] == 'insert') {
+					foreach($change['changed']['lines'] as $no => $line) {
+						$toLine = $change['changed']['offset'] + $no + 1;
+						$html .= '<tr>';
+						$html .= '<th></th>';
+						$html .= '<th>'.$toLine.'</th>';
+						$html .= '<td class="insert"><div>'.$line.'</div></td>';
+						$html .= '</tr>';
+					}
+				}
+				// Show deleted lines only on the left side
+				else if($change['tag'] == 'delete') {
+					foreach($change['base']['lines'] as $no => $line) {
+						$fromLine = $change['base']['offset'] + $no + 1;
+						$html .= '<tr>';
+						$html .= '<th>'.$fromLine.'</th>';
+						$html .= '<th></th>';
+						$html .= '<td class="delete"><div>'.$line.'</div></td>';
+						$html .= '</tr>';
+					}
+				}
+				// Show modified lines on both sides
+				else if($change['tag'] == 'replace') {
+					foreach($change['base']['lines'] as $no => $line) {
+						$fromLine = $change['base']['offset'] + $no + 1;
+						$html .= '<tr>';
+						$html .= '<th>'.$fromLine.'</th>';
+						$html .= '<th>&nbsp;</th>';
+						$html .= '<td class="delete"><div><span class="equal">'.$line.'</span></div></td>';
+						$html .= '</tr>';
+					}
+
+					foreach($change['changed']['lines'] as $no => $line) {
+						$toLine = $change['changed']['offset'] + $no + 1;
+						$html .= '<tr>';
+						$html .= '<th>&nbsp;</th>';
+						$html .= '<th>'.$toLine.'</th>';
+						$html .= '<td class="insert"><div><span class="equal">'.$line.'</span></div></td>';
+						$html .= '</tr>';
+					}
+				}
+			}
+
+			// Skipped lines after changes.
+			$x = count($changes) -1;
+			if($i === $x && $blocks[$x]['base']['offset'] + count($blocks[$x]['base']['lines']) + 1 < $this->linecnt[0] && 
+							$blocks[$x]['changed']['offset'] + count($blocks[$x]['changed']['lines']) + 1 < $this->linecnt[1]) {
+				$html .= '<tr>';
+				$html .= '<th>...</th>';
+				$html .= '<th>...</th>';
+				$html .= '<td class="skip"></td>';
+				$html .= '</tr>';
+			}
 		}
-		else {
-			$length = $end - $start;
-		}
-
-		return array_slice($this->a, $start, $length);
-
-	}
-
-	/**
-	 * Get a range of lines from $start to $end from the second comparison string
-	 * and return them as an array. If no values are supplied, the entire string
-	 * is returned. It's also possible to specify just one line to return only
-	 * that line.
-	 *
-	 * @param int $start The starting number.
-	 * @param int $end The ending number. If not supplied, only the item in $start will be returned.
-	 * @return array Array of all of the lines between the specified range.
-	 */
-	public function getB($start=0, $end=null)
-	{
-		if($start == 0 && $end === null) {
-			return $this->b;
-		}
-
-		if($end === null) {
-			$length = 1;
-		}
-		else {
-			$length = $end - $start;
-		}
-
-		return array_slice($this->b, $start, $length);
-	}
-
-	/**
-	 * Generate a list of the compiled and grouped opcodes for the differences between the
-	 * two strings. Generally called by the renderer, this class instantiates the sequence
-	 * matcher and performs the actual diff generation and return an array of the opcodes
-	 * for it. Once generated, the results are cached in the diff class instance.
-	 *
-	 * @return array Array of the grouped opcodes for the generated diff.
-	 */
-	public function getGroupedOpcodes()
-	{
-		if(!is_null($this->groupedCodes)) {
-			return $this->groupedCodes;
-		}
-
-		require dirname(__FILE__).'/SequenceMatcher.php';
-		$sequenceMatcher = new Diff_SequenceMatcher($this->a, $this->b, null, $this->options);
-		$this->groupedCodes = $sequenceMatcher->getGroupedOpcodes($this->options['context']);
-		return $this->groupedCodes;
+		$html .= '</table>';
+		return $html;
 	}
 }
